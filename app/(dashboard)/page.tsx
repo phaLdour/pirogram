@@ -5,6 +5,7 @@ import { TaskBoard } from "@/components/dashboard/TaskBoard";
 import { LiveFeed } from "@/components/dashboard/LiveFeed";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { LiveRefresh } from "@/components/dashboard/LiveRefresh";
+import { TaskDrawer } from "@/components/dashboard/TaskDrawer";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
           Webhook: <code>/api/webhook/events</code>
         </span>
       </footer>
+      <TaskDrawer />
     </main>
   );
 }
