@@ -133,11 +133,15 @@ model Sprint {
 }
 
 model WebhookKey {
-  id           String    @id @default(cuid())
-  name         String
-  hashedSecret String
-  createdAt    DateTime  @default(now())
-  lastUsedAt   DateTime?
+  id              String    @id @default(cuid())
+  name            String
+  encryptedSecret String
+  hint            String
+  createdAt       DateTime  @default(now())
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
+
+  @@index([revokedAt])
 }
 
 model EventLog {

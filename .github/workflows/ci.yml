@@ -87,6 +87,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://agentwatch:agentwatch@localhost:5432/agentwatch_test
       WEBHOOK_SIGNING_SECRET: ci-secret
+      WEBHOOK_KEY_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       NEXTAUTH_SECRET: ci-nextauth-secret
       NEXTAUTH_URL: http://127.0.0.1:3000
     steps:

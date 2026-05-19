@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import type { Sprint } from "@prisma/client";
 
@@ -38,6 +39,12 @@ export function TopBar({ sprint, user }: { sprint: SprintSummary; user: SessionU
         )}
       </div>
       <div className="flex items-center gap-3 text-sm">
+        <Link
+          href="/settings"
+          className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
+        >
+          Settings
+        </Link>
         <span className="text-slate-400">{user.email ?? user.name}</span>
         <form
           action={async () => {
