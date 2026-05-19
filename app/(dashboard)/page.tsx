@@ -1,21 +1,35 @@
-export default function DashboardPage() {
+import { auth } from "@/lib/auth";
+import { getDashboardSnapshot } from "@/lib/queries/dashboard";
+import { AgentList } from "@/components/dashboard/AgentList";
+import { TaskBoard } from "@/components/dashboard/TaskBoard";
+import { LiveFeed } from "@/components/dashboard/LiveFeed";
+import { TopBar } from "@/components/dashboard/TopBar";
+import { LiveRefresh } from "@/components/dashboard/LiveRefresh";
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const session = await auth();
+  // Middleware already guards this route; the check below is defensive
+  // and narrows the type so the JSX can rely on session.user existing.
+  if (!session?.user) return null;
+
+  const snapshot = await getDashboardSnapshot();
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-6 py-16">
-      <h1 className="text-4xl font-bold tracking-tight">Hello AgentWatch</h1>
-      <p className="mt-4 text-slate-400">
-        Sprint 0 scaffold. The live dashboard ships in Sprint 1.
-      </p>
-      <ul className="mt-8 space-y-2 text-sm text-slate-400">
-        <li>
-          Health: <code className="text-slate-200">GET /api/health</code>
-        </li>
-        <li>
-          Webhook: <code className="text-slate-200">POST /api/webhook/events</code>
-        </li>
-        <li>
-          Auth: <code className="text-slate-200">/api/auth/signin</code>
-        </li>
-      </ul>
+    <main className="mx-auto flex min-h-screen max-w-[1400px] flex-col gap-6 px-6 py-6">
+      <TopBar sprint={snapshot.activeSprint} user={session.user} />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr_320px]">
+        <AgentList agents={snapshot.agents} />
+        <TaskBoard tasksByStatus={snapshot.tasksByStatus} />
+        <LiveFeed feed={snapshot.feed} />
+      </div>
+      <footer className="flex items-center justify-between border-t border-slate-800 pt-3">
+        <LiveRefresh />
+        <span className="text-xs text-slate-600">
+          Webhook: <code>/api/webhook/events</code>
+        </span>
+      </footer>
     </main>
   );
 }

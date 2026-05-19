@@ -70,8 +70,24 @@ jobs:
     name: E2E (Playwright)
     needs: [lint-and-typecheck, unit]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentwatch
+          POSTGRES_PASSWORD: agentwatch
+          POSTGRES_DB: agentwatch_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U agentwatch"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     env:
+      DATABASE_URL: postgresql://agentwatch:agentwatch@localhost:5432/agentwatch_test
       WEBHOOK_SIGNING_SECRET: ci-secret
+      WEBHOOK_KEY_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       NEXTAUTH_SECRET: ci-nextauth-secret
       NEXTAUTH_URL: http://127.0.0.1:3000
     steps:
@@ -85,6 +101,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
+      - run: pnpm prisma:migrate
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
       - run: pnpm test:e2e
