@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import type { Sprint } from "@prisma/client";
+import { StartSprintForm } from "@/components/sprints/StartSprintForm";
+import { EndSprintForm } from "@/components/sprints/EndSprintForm";
 
 type SprintSummary = (Sprint & { totalTasks: number; doneTasks: number }) | null;
 type SessionUser = { email?: string | null; name?: string | null };
@@ -16,7 +18,11 @@ export function TopBar({ sprint, user }: { sprint: SprintSummary; user: SessionU
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-bold tracking-tight">AgentWatch</h1>
         {sprint ? (
-          <div className="flex items-center gap-3 rounded-md bg-slate-900 px-3 py-1.5">
+          <Link
+            href={`/sprints/${sprint.id}`}
+            className="flex items-center gap-3 rounded-md bg-slate-900 px-3 py-1.5 hover:bg-slate-800"
+            aria-label={`Active sprint ${sprint.name}`}
+          >
             <span className="text-sm font-medium">{sprint.name}</span>
             <div className="flex items-center gap-2">
               <div
@@ -33,12 +39,19 @@ export function TopBar({ sprint, user }: { sprint: SprintSummary; user: SessionU
                 {sprint.doneTasks}/{sprint.totalTasks}
               </span>
             </div>
-          </div>
+          </Link>
         ) : (
-          <span className="text-xs text-slate-500">No active sprint</span>
+          <StartSprintForm />
         )}
       </div>
       <div className="flex items-center gap-3 text-sm">
+        {sprint && <EndSprintForm sprintId={sprint.id} />}
+        <Link
+          href="/sprints"
+          className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
+        >
+          Sprints
+        </Link>
         <Link
           href="/settings"
           className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
