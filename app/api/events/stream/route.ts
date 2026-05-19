@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { isRedisConfigured, readSince } from "@/lib/realtime/stream";
+import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,9 +21,12 @@ function sseChunk(opts: { id?: string; event?: string; data: string }): Uint8Arr
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) {
+    log.warn("sse.unauthorized");
     return new Response("unauthorized", { status: 401 });
   }
 
+  const openedAt = performance.now();
+  log.info("sse.opened", { userId: session.user.id });
   let lastId = req.headers.get("last-event-id") ?? "0";
   let cancelled = false;
 
@@ -51,6 +55,8 @@ export async function GET(req: Request) {
       req.signal.addEventListener("abort", () => {
         cancelled = true;
         clearInterval(heartbeat);
+        const durationMs = Math.round(performance.now() - openedAt);
+        log.info("sse.closed", { reason: "client-abort", durationMs });
         try {
           controller.close();
         } catch {
