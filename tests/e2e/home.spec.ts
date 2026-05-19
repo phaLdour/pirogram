@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("home page renders the Sprint 0 placeholder", async ({ page }) => {
+test("unauthenticated users are redirected to /signin", async ({ page }) => {
   const response = await page.goto("/");
-  expect(response?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: "Hello AgentWatch" })).toBeVisible();
+  expect(response?.status()).toBeLessThan(400);
+  await expect(page).toHaveURL(/\/signin/);
+  await expect(page.getByRole("heading", { name: "Sign in to AgentWatch" })).toBeVisible();
 });
 
 test("health endpoint returns ok", async ({ request }) => {

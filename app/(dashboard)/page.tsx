@@ -1,46 +1,35 @@
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { getDashboardSnapshot } from "@/lib/queries/dashboard";
+import { AgentList } from "@/components/dashboard/AgentList";
+import { TaskBoard } from "@/components/dashboard/TaskBoard";
+import { LiveFeed } from "@/components/dashboard/LiveFeed";
+import { TopBar } from "@/components/dashboard/TopBar";
+import { LiveRefresh } from "@/components/dashboard/LiveRefresh";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await auth();
+  // Middleware already guards this route; the check below is defensive
+  // and narrows the type so the JSX can rely on session.user existing.
+  if (!session?.user) return null;
+
+  const snapshot = await getDashboardSnapshot();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-8 px-6 py-12">
-      <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">AgentWatch</h1>
-        {session?.user && (
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-slate-400">{session.user.email ?? session.user.name}</span>
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/signin" });
-              }}
-            >
-              <button
-                type="submit"
-                className="rounded-md border border-slate-700 px-3 py-1 hover:bg-slate-800"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
-        )}
-      </header>
-
-      <section>
-        <h2 className="text-lg font-semibold">Sprint 1 — work in progress</h2>
-        <p className="mt-2 text-sm text-slate-400">
-          Auth wired. Live dashboard, webhook persistence, and settings ship in this sprint.
-        </p>
-        <ul className="mt-4 space-y-1 text-sm text-slate-400">
-          <li>
-            Webhook: <code className="text-slate-200">POST /api/webhook/events</code>
-          </li>
-          <li>
-            Health: <code className="text-slate-200">GET /api/health</code>
-          </li>
-        </ul>
-      </section>
+    <main className="mx-auto flex min-h-screen max-w-[1400px] flex-col gap-6 px-6 py-6">
+      <TopBar sprint={snapshot.activeSprint} user={session.user} />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr_320px]">
+        <AgentList agents={snapshot.agents} />
+        <TaskBoard tasksByStatus={snapshot.tasksByStatus} />
+        <LiveFeed feed={snapshot.feed} />
+      </div>
+      <footer className="flex items-center justify-between border-t border-slate-800 pt-3">
+        <LiveRefresh />
+        <span className="text-xs text-slate-600">
+          Webhook: <code>/api/webhook/events</code>
+        </span>
+      </footer>
     </main>
   );
 }
