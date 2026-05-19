@@ -16,9 +16,13 @@ Upstash Redis · NextAuth v5 · Vitest + Playwright · Vercel.
 ```bash
 corepack enable
 pnpm install
-cp .env.example .env.local   # fill in secrets
-pnpm prisma:generate          # generates the Prisma client
-pnpm dev                      # http://localhost:3000
+cp .env.example .env.local        # fill in secrets
+pnpm prisma:generate              # generates the Prisma client
+
+# One-time DB setup (any Postgres 14+; Neon recommended for prod)
+pnpm prisma:migrate:dev           # runs migrations + applies schema
+
+pnpm dev                          # http://localhost:3000
 ```
 
 ### Required env vars
