@@ -15,4 +15,4 @@ export function getRedis(): Redis {
   return client;
 }
 
-export const LIVE_EVENTS_CHANNEL = "events:live";
+export const LIVE_EVENTS_STREAM = "events:live";

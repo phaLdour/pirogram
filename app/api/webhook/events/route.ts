@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { agentEventSchema } from "@/lib/webhook/schema";
 import {
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
   verifySignature,
 } from "@/lib/webhook/verify";
+import { prisma } from "@/lib/db";
+import { applyProjection } from "@/lib/projections";
+import { publishLiveEvent } from "@/lib/realtime/publish";
 
 export const runtime = "nodejs";
+
+const UNIQUE_CONSTRAINT = "P2002";
 
 export async function POST(req: Request) {
   const secret = process.env.WEBHOOK_SIGNING_SECRET;
@@ -40,7 +46,32 @@ export async function POST(req: Request) {
       { status: 422 },
     );
   }
+  const event = parsed.data;
 
-  // TODO(sprint-1): persist to Postgres + publish to Redis pub/sub.
-  return NextResponse.json({ accepted: true, eventId: parsed.data.eventId }, { status: 202 });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.eventLog.create({
+        data: {
+          eventId: event.eventId,
+          type: event.type,
+          payload: event as unknown as Prisma.InputJsonValue,
+        },
+      });
+      await applyProjection(tx, event);
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === UNIQUE_CONSTRAINT) {
+      // Duplicate eventId — already processed. Idempotent ACK.
+      return NextResponse.json({ accepted: true, eventId: event.eventId, duplicate: true }, { status: 202 });
+    }
+    console.error("webhook persist failed", err);
+    return NextResponse.json({ error: "persist-failed" }, { status: 500 });
+  }
+
+  await publishLiveEvent(event).catch((err) => {
+    // Persistence already succeeded; a publish failure must not poison the ACK.
+    console.error("live publish failed", err);
+  });
+
+  return NextResponse.json({ accepted: true, eventId: event.eventId }, { status: 202 });
 }
