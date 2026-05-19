@@ -19,7 +19,12 @@ export function AgentList({ agents }: { agents: Agent[] }) {
     <aside className="flex flex-col gap-2" aria-label="Agents">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Agents</h2>
       {agents.length === 0 ? (
-        <p className="text-sm text-slate-500">No agents have reported yet.</p>
+        <div className="rounded-md border border-dashed border-slate-800 px-3 py-6 text-center">
+          <p className="text-sm text-slate-400">No agents reported yet.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Send a signed event to the webhook to register one.
+          </p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {agents.map((a) => (

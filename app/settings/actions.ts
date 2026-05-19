@@ -22,8 +22,16 @@ export async function createWebhookKey(formData: FormData): Promise<CreateKeyRes
   const encryptedSecret = encryptSecret(secret);
   const hint = secretHint(secret);
 
-  const key = await prisma.webhookKey.create({
-    data: { name, encryptedSecret, hint },
+  // Atomic rotation: revoke every prior non-revoked key, then issue the new one.
+  // After this transaction commits, the new key is the only verifier the
+  // webhook handler will accept (alongside the env fallback, if set).
+  const now = new Date();
+  const key = await prisma.$transaction(async (tx) => {
+    await tx.webhookKey.updateMany({
+      where: { revokedAt: null },
+      data: { revokedAt: now },
+    });
+    return tx.webhookKey.create({ data: { name, encryptedSecret, hint } });
   });
 
   revalidatePath("/settings");

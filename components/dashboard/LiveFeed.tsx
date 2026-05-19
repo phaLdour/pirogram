@@ -103,7 +103,12 @@ export function LiveFeed({ feed }: { feed: FeedItem[] }) {
       </div>
 
       {feed.length === 0 ? (
-        <p className="text-sm text-slate-500">No messages yet.</p>
+        <div className="rounded-md border border-dashed border-slate-800 px-3 py-6 text-center">
+          <p className="text-sm text-slate-400">No messages yet.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Agent chatter streams in here as it arrives.
+          </p>
+        </div>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-slate-500">No messages match the current filters.</p>
       ) : (

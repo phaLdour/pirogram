@@ -18,7 +18,8 @@ export function CreateKeyForm() {
       <h3 className="text-sm font-semibold">Generate a new webhook key</h3>
       <p className="mt-1 text-xs text-slate-500">
         The signing secret is shown <strong>once</strong>. Copy it now and store it with your
-        Claude Code hook configuration.
+        Claude Code hook configuration. Generating a new key{" "}
+        <strong>immediately revokes every previous key</strong>.
       </p>
       <form action={formAction} className="mt-3 flex items-center gap-2">
         <input
