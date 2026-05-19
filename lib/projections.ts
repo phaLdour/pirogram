@@ -25,12 +25,14 @@ export async function applyProjection(tx: Tx, event: AgentEvent): Promise<void> 
       const assignee = event.task.assignee
         ? await upsertAgent(tx, event.task.assignee, "WORKING")
         : null;
+      const activeSprint = await tx.sprint.findFirst({ where: { status: "ACTIVE" } });
       await tx.task.upsert({
         where: { id: event.task.id },
         update: {
           title: event.task.title,
           description: event.task.description,
           ...(assignee ? { assigneeId: assignee.id } : {}),
+          ...(activeSprint ? { sprintId: activeSprint.id } : {}),
         },
         create: {
           id: event.task.id,
@@ -38,6 +40,7 @@ export async function applyProjection(tx: Tx, event: AgentEvent): Promise<void> 
           description: event.task.description,
           status: "PENDING",
           ...(assignee ? { assigneeId: assignee.id } : {}),
+          ...(activeSprint ? { sprintId: activeSprint.id } : {}),
         },
       });
       return;
