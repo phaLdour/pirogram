@@ -1,3 +1,6 @@
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Task } from "@prisma/client";
 
 type Buckets = {
@@ -13,6 +16,14 @@ const COLUMN_TITLES: Record<keyof Buckets, string> = {
 };
 
 export function TaskBoard({ tasksByStatus }: { tasksByStatus: Buckets }) {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const open = (id: string) => {
+    const params = new URLSearchParams(sp.toString());
+    params.set("task", id);
+    router.push(`/?${params.toString()}`, { scroll: false });
+  };
+
   return (
     <section className="flex flex-col gap-2" aria-label="Tasks">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tasks</h2>
@@ -28,12 +39,16 @@ export function TaskBoard({ tasksByStatus }: { tasksByStatus: Buckets }) {
             </div>
             <ul className="flex flex-col gap-2 p-2">
               {tasksByStatus[status].map((t) => (
-                <li
-                  key={t.id}
-                  className="rounded border border-slate-800 bg-slate-950 px-3 py-2 text-sm"
-                >
-                  <div className="font-medium">{t.title}</div>
-                  <div className="mt-1 text-xs text-slate-500">{t.id}</div>
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => open(t.id)}
+                    className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-left text-sm hover:border-slate-600 focus:border-slate-500 focus:outline-none"
+                    aria-label={`Open task ${t.id}: ${t.title}`}
+                  >
+                    <div className="font-medium">{t.title}</div>
+                    <div className="mt-1 text-xs text-slate-500">{t.id}</div>
+                  </button>
                 </li>
               ))}
               {tasksByStatus[status].length === 0 && (
