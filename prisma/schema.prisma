@@ -1,0 +1,115 @@
+// AgentWatch — Sprint 0 schema
+// Migrations are intentionally not generated yet; the first migration runs in
+// Sprint 1 once a DATABASE_URL is wired into the deploy environment.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum AgentStatus {
+  IDLE
+  WORKING
+  BLOCKED
+  OFFLINE
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum SprintStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  githubId  String   @unique
+  email     String?
+  name      String?
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+}
+
+model Agent {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  role          String
+  status        AgentStatus  @default(IDLE)
+  currentTaskId String?
+  lastSeenAt    DateTime?
+  messages      Message[]
+  tasks         Task[]
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(PENDING)
+  assigneeId  String?
+  sprintId    String?
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+  assignee    Agent?     @relation(fields: [assigneeId], references: [id])
+  sprint      Sprint?    @relation(fields: [sprintId], references: [id])
+
+  @@index([status])
+  @@index([sprintId])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  fromAgentId String
+  toAgentId   String?
+  taskId      String?
+  body        String
+  createdAt   DateTime @default(now())
+  from        Agent    @relation(fields: [fromAgentId], references: [id])
+
+  @@index([createdAt])
+}
+
+model Sprint {
+  id        String       @id @default(cuid())
+  name      String
+  goal      String?
+  status    SprintStatus @default(ACTIVE)
+  version   String?
+  startedAt DateTime     @default(now())
+  endedAt   DateTime?
+  changelog String?
+  tasks     Task[]
+}
+
+model WebhookKey {
+  id           String    @id @default(cuid())
+  name         String
+  hashedSecret String
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+}
+
+model EventLog {
+  id         BigInt   @id @default(autoincrement())
+  eventId    String   @unique
+  type       String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
+}
