@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm prisma:generate && pnpm prisma:migrate && pnpm build",
+  "regions": ["fra1"],
+  "functions": {
+    "app/api/events/stream/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/webhook/events/route.ts": {
+      "maxDuration": 15
+    }
+  }
+}
