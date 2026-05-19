@@ -24,10 +24,23 @@ export function TaskBoard({ tasksByStatus }: { tasksByStatus: Buckets }) {
     router.push(`/?${params.toString()}`, { scroll: false });
   };
 
+  const totalTasks =
+    tasksByStatus.PENDING.length + tasksByStatus.IN_PROGRESS.length + tasksByStatus.DONE.length;
+
   return (
     <section className="flex flex-col gap-2" aria-label="Tasks">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tasks</h2>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      {totalTasks === 0 && (
+        <div className="rounded-md border border-dashed border-slate-800 px-4 py-8 text-center">
+          <p className="text-sm text-slate-400">No tasks yet.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Tasks appear here when a <code>TaskCreated</code> event is received.
+          </p>
+        </div>
+      )}
+      <div
+        className={`grid grid-cols-1 gap-3 md:grid-cols-3 ${totalTasks === 0 ? "hidden" : ""}`}
+      >
         {(Object.keys(COLUMN_TITLES) as (keyof Buckets)[]).map((status) => (
           <div
             key={status}

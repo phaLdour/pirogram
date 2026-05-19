@@ -18,7 +18,10 @@ export default async function DashboardPage() {
   const snapshot = await getDashboardSnapshot();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[1400px] flex-col gap-6 px-6 py-6">
+    <main
+      id="main-content"
+      className="mx-auto flex min-h-screen max-w-[1400px] flex-col gap-6 px-6 py-6"
+    >
       <TopBar sprint={snapshot.activeSprint} user={session.user} />
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr_320px]">
         <AgentList agents={snapshot.agents} />
