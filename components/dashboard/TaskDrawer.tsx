@@ -23,13 +23,21 @@ type Detail = {
 };
 
 export function TaskDrawer() {
-  const router = useRouter();
   const sp = useSearchParams();
   const id = sp.get("task");
+  if (!id) return null;
+  // `key={id}` remounts the inner component when the selected task changes,
+  // which resets all of its state cleanly without `setState` calls inside an
+  // effect (forbidden by react-hooks/set-state-in-effect in React 19+).
+  return <DrawerForTask id={id} key={id} />;
+}
 
+function DrawerForTask({ id }: { id: string }) {
+  const router = useRouter();
+  const sp = useSearchParams();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const close = () => {
     const params = new URLSearchParams(sp.toString());
@@ -39,43 +47,32 @@ export function TaskDrawer() {
   };
 
   useEffect(() => {
-    if (!id) {
-      setDetail(null);
-      setError(null);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetch(`/api/tasks/${encodeURIComponent(id)}`)
+    const controller = new AbortController();
+    fetch(`/api/tasks/${encodeURIComponent(id)}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`status ${res.status}`);
         return (await res.json()) as Detail;
       })
-      .then((d) => {
-        if (!cancelled) setDetail(d);
-      })
+      .then((d) => setDetail(d))
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "fetch-failed");
+        if (controller.signal.aborted) return;
+        setError(e instanceof Error ? e.message : "fetch-failed");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [id]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && id) close();
+      if (e.key === "Escape") close();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // close is stable enough for this short-lived component
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  if (!id) return null;
+  }, []);
 
   return (
     <div
