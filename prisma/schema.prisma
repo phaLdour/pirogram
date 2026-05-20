@@ -99,13 +99,16 @@ model Task {
   status      TaskStatus @default(PENDING)
   assigneeId  String?
   sprintId    String?
+  repoId      String?
   createdAt   DateTime   @default(now())
   completedAt DateTime?
   assignee    Agent?     @relation(fields: [assigneeId], references: [id])
   sprint      Sprint?    @relation(fields: [sprintId], references: [id])
+  repo        Repo?      @relation(fields: [repoId], references: [id])
 
   @@index([status])
   @@index([sprintId])
+  @@index([repoId])
 }
 
 model Message {
@@ -113,11 +116,29 @@ model Message {
   fromAgentId String
   toAgentId   String?
   taskId      String?
+  repoId      String?
   body        String
   createdAt   DateTime @default(now())
   from        Agent    @relation(fields: [fromAgentId], references: [id])
+  repo        Repo?    @relation(fields: [repoId], references: [id])
 
   @@index([createdAt])
+  @@index([repoId])
+}
+
+model Repo {
+  id              String    @id @default(cuid())
+  fullName        String    @unique
+  displayName     String?
+  encryptedSecret String
+  hint            String
+  createdAt       DateTime  @default(now())
+  lastEventAt     DateTime?
+  revokedAt       DateTime?
+  tasks           Task[]
+  messages        Message[]
+
+  @@index([revokedAt])
 }
 
 model Sprint {

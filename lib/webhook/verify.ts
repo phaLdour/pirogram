@@ -37,3 +37,30 @@ export function verifySignature(params: {
 
   return timingSafeEqual(a, b) ? { ok: true } : { ok: false, reason: "bad-signature" };
 }
+
+/**
+ * HMAC-SHA256 verification with no timestamp / replay window. Used for
+ * provider-driven webhooks (GitHub) whose signature scheme does not include
+ * a timestamp; idempotency is enforced at the EventLog layer instead.
+ */
+export function verifyHmacOnly(params: {
+  body: string;
+  signatureHeader: string | null;
+  secret: string;
+}): VerifyResult {
+  const { body, signatureHeader, secret } = params;
+  if (!signatureHeader) return { ok: false, reason: "missing-header" };
+
+  const expected = createHmac("sha256", secret).update(body).digest("hex");
+  const provided = signatureHeader.startsWith("sha256=")
+    ? signatureHeader.slice("sha256=".length)
+    : signatureHeader;
+
+  if (expected.length !== provided.length) return { ok: false, reason: "bad-signature" };
+
+  const a = Buffer.from(expected, "hex");
+  const b = Buffer.from(provided, "hex");
+  if (a.length !== b.length) return { ok: false, reason: "bad-signature" };
+
+  return timingSafeEqual(a, b) ? { ok: true } : { ok: false, reason: "bad-signature" };
+}

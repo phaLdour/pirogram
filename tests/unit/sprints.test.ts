@@ -16,6 +16,7 @@ function task(id: string, title: string, status: Task["status"] = "DONE"): Task 
     status,
     assigneeId: null,
     sprintId: null,
+    repoId: null,
     createdAt: new Date("2026-05-01T00:00:00Z"),
     completedAt: new Date("2026-05-02T00:00:00Z"),
   };
