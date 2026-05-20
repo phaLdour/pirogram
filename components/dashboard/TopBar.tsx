@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
-import type { Sprint } from "@prisma/client";
+import type { Repo, Sprint } from "@prisma/client";
 import { StartSprintForm } from "@/components/sprints/StartSprintForm";
 import { EndSprintForm } from "@/components/sprints/EndSprintForm";
+import { RepoFilter } from "@/components/dashboard/RepoFilter";
 
 type SprintSummary = (Sprint & { totalTasks: number; doneTasks: number }) | null;
 type SessionUser = { email?: string | null; name?: string | null };
 
-export function TopBar({ sprint, user }: { sprint: SprintSummary; user: SessionUser }) {
+export function TopBar({
+  sprint,
+  user,
+  repos,
+  activeRepoId,
+}: {
+  sprint: SprintSummary;
+  user: SessionUser;
+  repos: Repo[];
+  activeRepoId: string | null;
+}) {
   const pct =
     sprint && sprint.totalTasks > 0
       ? Math.round((sprint.doneTasks / sprint.totalTasks) * 100)
@@ -45,12 +56,19 @@ export function TopBar({ sprint, user }: { sprint: SprintSummary; user: SessionU
         )}
       </div>
       <div className="flex items-center gap-3 text-sm">
+        <RepoFilter repos={repos} activeRepoId={activeRepoId} />
         {sprint && <EndSprintForm sprintId={sprint.id} />}
         <Link
           href="/sprints"
           className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
         >
           Sprints
+        </Link>
+        <Link
+          href="/repos"
+          className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
+        >
+          Repos
         </Link>
         <Link
           href="/settings"

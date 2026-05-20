@@ -19,7 +19,14 @@ async function upsertAgent(tx: Tx, name: string, status?: "IDLE" | "WORKING" | "
   });
 }
 
-export async function applyProjection(tx: Tx, event: AgentEvent): Promise<void> {
+export type ProjectionOptions = { repoId?: string };
+
+export async function applyProjection(
+  tx: Tx,
+  event: AgentEvent,
+  opts: ProjectionOptions = {},
+): Promise<void> {
+  const { repoId } = opts;
   switch (event.type) {
     case "TaskCreated": {
       const assignee = event.task.assignee
@@ -33,6 +40,7 @@ export async function applyProjection(tx: Tx, event: AgentEvent): Promise<void> 
           description: event.task.description,
           ...(assignee ? { assigneeId: assignee.id } : {}),
           ...(activeSprint ? { sprintId: activeSprint.id } : {}),
+          ...(repoId ? { repoId } : {}),
         },
         create: {
           id: event.task.id,
@@ -41,6 +49,7 @@ export async function applyProjection(tx: Tx, event: AgentEvent): Promise<void> 
           status: "PENDING",
           ...(assignee ? { assigneeId: assignee.id } : {}),
           ...(activeSprint ? { sprintId: activeSprint.id } : {}),
+          ...(repoId ? { repoId } : {}),
         },
       });
       return;
@@ -69,6 +78,7 @@ export async function applyProjection(tx: Tx, event: AgentEvent): Promise<void> 
           taskId: event.taskId,
           body: event.body,
           createdAt: new Date(event.at),
+          ...(repoId ? { repoId } : {}),
         },
       });
       return;

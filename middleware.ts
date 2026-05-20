@@ -6,7 +6,7 @@ import { authConfig } from "@/lib/auth.config";
 // PrismaAdapter or the Prisma client.
 const { auth } = NextAuth(authConfig);
 
-const PROTECTED = ["/", "/settings", "/sprints"];
+const PROTECTED = ["/", "/settings", "/sprints", "/repos"];
 const REQUEST_ID_HEADER = "x-request-id";
 
 function generateRequestId(): string {

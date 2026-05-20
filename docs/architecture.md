@@ -3,9 +3,18 @@
 ## Overview
 
 ```
-Claude Code hooks ──► POST /api/webhook/events ──► Postgres (EventLog + domain tables)
-                                              └──► Redis pub/sub ──► Socket.io ──► Browser
+GitHub ──► POST /api/webhook/github  ─┐  (HMAC + repo lookup, X-GitHub-Delivery idempotency)
+                                      │
+                                      ├──►  EventLog + Agent/Task/Message/Sprint (Prisma)
+Claude Code hooks                     │              │
+   ↓ (adapter)                        │              ▼
+POST /api/webhook/events ─────────────┘    Upstash Redis stream `events:live`
+   (HMAC + replay window)                              │
+                                                       ▼
+                                              SSE  /api/events/stream  ─► Browser dashboard
 ```
+
+Two write paths, one read path. Both webhook routes flow through the same `applyProjection` + `publishLiveEvent` pipeline.
 
 ## Components
 
@@ -32,7 +41,35 @@ Responses:
 - `422` schema-invalid payload
 - `500` server misconfigured (missing secret)
 
-Sprint-0 endpoint validates + ACKs. Persisting to Postgres and publishing to Redis lands in Sprint 1.
+## GitHub webhook contract — `POST /api/webhook/github`
+
+Bind a repo on `/repos`; AgentWatch generates a per-repo HMAC secret and shows it once. Configure the GitHub webhook with:
+
+- **Payload URL:** `https://<host>/api/webhook/github`
+- **Content type:** `application/json`
+- **Secret:** the plaintext from `/repos`
+- **Events:** `push`, `pull_request`, `issues`, `workflow_run`
+
+Headers GitHub sends:
+
+- `X-GitHub-Event` — event name
+- `X-Hub-Signature-256: sha256=<hex>` — HMAC-SHA256(body, repo.secret); no timestamp (idempotency comes from `X-GitHub-Delivery`)
+- `X-GitHub-Delivery` — UUID; used as the seed for deterministic per-event `eventId`s so re-deliveries are dropped at `EventLog.eventId @unique`
+
+Translator (`lib/webhook/github-translator.ts`):
+
+| GitHub event | AgentEvent(s) |
+| --- | --- |
+| `push` (per commit) | `Message`; `TaskCreated` if commit subject is a Conventional Commit (`feat:`, `fix:`, …) |
+| `pull_request.opened/reopened` | `TaskCreated` id=`<repo>/PR-<n>` |
+| `pull_request.closed` | `TaskCompleted` |
+| `issues.opened/reopened` | `TaskCreated` id=`<repo>/ISSUE-<n>` |
+| `issues.closed` | `TaskCompleted` |
+| `workflow_run.completed` && conclusion=failure | `Message` "CI failed: <name>" |
+| `ping` | no-op (recognized) |
+| anything else | no-op (`recognized: false`) |
+
+Each emitted `AgentEvent` is validated against `agentEventSchema` before persistence — a translator bug cannot poison the projection pipeline.
 
 ## Realtime pipeline (SSE + Redis Streams)
 
