@@ -1,7 +1,7 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import GitHub from "next-auth/providers/github";
 import { prisma } from "@/lib/db";
+import { authConfig } from "@/lib/auth.config";
 
 declare module "next-auth" {
   interface Session {
@@ -15,14 +15,8 @@ declare module "next-auth" {
 type Role = "ADMIN" | "MEMBER";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  providers: [
-    GitHub({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
-    }),
-  ],
-  session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) {
@@ -42,8 +36,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = role;
       return session;
     },
-  },
-  pages: {
-    signIn: "/signin",
   },
 });

@@ -1,5 +1,10 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import { authConfig } from "@/lib/auth.config";
+
+// Use the edge-safe config only here so middleware never bundles
+// PrismaAdapter or the Prisma client.
+const { auth } = NextAuth(authConfig);
 
 const PROTECTED = ["/", "/settings", "/sprints"];
 const REQUEST_ID_HEADER = "x-request-id";
@@ -12,7 +17,8 @@ function generateRequestId(): string {
 
 export default auth((req) => {
   const incoming = req.headers.get(REQUEST_ID_HEADER);
-  const requestId = incoming && /^[a-zA-Z0-9._-]{4,128}$/.test(incoming) ? incoming : generateRequestId();
+  const requestId =
+    incoming && /^[a-zA-Z0-9._-]{4,128}$/.test(incoming) ? incoming : generateRequestId();
 
   const { pathname } = req.nextUrl;
   const isProtected = PROTECTED.some(
