@@ -128,9 +128,8 @@ export function DriveOnGitHubPanel({
 
   if (driverStatus === "NOT_DRIVING") {
     return (
-      <section className="rounded-md border border-slate-800 bg-slate-900/40 p-4">
-        <h2 className="text-sm font-semibold text-slate-300">Drive on GitHub</h2>
-        <p className="mt-1 text-xs text-slate-500">
+      <div>
+        <p className="text-xs text-slate-400">
           Open an issue on a bound repo with the sprint goal as the prompt.
           AgentWatch&apos;s{" "}
           <a
@@ -211,7 +210,7 @@ export function DriveOnGitHubPanel({
             {ERROR_COPY[error] ?? error}
           </div>
         )}
-      </section>
+      </div>
     );
   }
 
@@ -225,11 +224,10 @@ export function DriveOnGitHubPanel({
           : "text-slate-300";
 
   return (
-    <section className="rounded-md border border-slate-800 bg-slate-900/40 p-4">
+    <div>
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-300">Drive on GitHub</h2>
-          <p className={`mt-0.5 text-xs ${statusColor}`}>
+          <p className={`text-sm font-medium ${statusColor}`}>
             {statusLabel(driverStatus)}
             {driverRepoFullName && (
               <span className="ml-2 text-slate-500">on {driverRepoFullName}</span>
@@ -315,6 +313,6 @@ export function DriveOnGitHubPanel({
           {ERROR_COPY[error] ?? error}
         </div>
       )}
-    </section>
+    </div>
   );
 }

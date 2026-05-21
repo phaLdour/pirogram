@@ -44,6 +44,11 @@ enum SprintDriverStatus {
   FAILED
 }
 
+enum SprintDriverMode {
+  HANDOFF
+  AUTO_ACTION
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -167,6 +172,7 @@ model Sprint {
   driverIssueNumber Int?
   driverIssueUrl    String?
   driverStatus      SprintDriverStatus @default(NOT_DRIVING)
+  driverMode        SprintDriverMode?
   tasks             Task[]
   claudeMessages    ClaudeMessage[]
   driver            Repo?              @relation("SprintDriver", fields: [driverRepoId], references: [id])
