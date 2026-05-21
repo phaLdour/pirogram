@@ -31,7 +31,7 @@ Headers:
 - `X-AgentWatch-Signature: sha256=<hex>` — HMAC-SHA256(body, secret), constant-time compare.
 - `X-AgentWatch-Timestamp: <unix-seconds>` — must be within ±5 minutes.
 
-Body: one of the events in `lib/webhook/schema.ts` (`TaskCreated`, `TaskCompleted`, `TeammateIdle`, `Message`, `SprintStarted`, `SprintEnded`). Every event carries a `eventId` (UUID) for idempotency.
+Body: one of the events in `lib/webhook/schema.ts` (`TaskCreated`, `TaskCompleted`, `TeammateIdle`, `Message`, `SprintStarted`, `SprintEnded`, `ActivityStarted`, `ActivityEnded`). Every event carries an `eventId` (UUID) for idempotency. `ActivityStarted` / `ActivityEnded` are keyed by `tool_use_id` from Claude Code's hook payload and feed the dashboard's live activity tree.
 
 Responses:
 

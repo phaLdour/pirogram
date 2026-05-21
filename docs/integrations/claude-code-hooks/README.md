@@ -20,7 +20,10 @@ export AGENTWATCH_URL=https://pirogram-delta.vercel.app
 export AGENTWATCH_SECRET=<plaintext secret from /settings>
 export AGENTWATCH_AGENT_NAME=PM    # this hook will report as "PM"
 # optional:
-export AGENTWATCH_DEBUG=1          # mirror each payload + signature to stderr
+export AGENTWATCH_DEBUG=1                # mirror each payload + signature to stderr
+export AGENTWATCH_VERBOSE_MESSAGES=1     # also emit "→ Bash" / "← Bash" Messages
+                                         # (off by default — the dashboard now
+                                         # shows tool calls structurally)
 ```
 
 ## Wire up Claude Code hooks
@@ -34,20 +37,26 @@ In your repo's Claude Code settings (`.claude/settings.json`):
     "UserPromptSubmit":  [{ "hooks": [{ "type": "command", "command": ".claude/hooks/agentwatch-emit.sh" }] }],
     "PreToolUse":        [{ "hooks": [{ "type": "command", "command": ".claude/hooks/agentwatch-emit.sh" }] }],
     "PostToolUse":       [{ "hooks": [{ "type": "command", "command": ".claude/hooks/agentwatch-emit.sh" }] }],
-    "Stop":              [{ "hooks": [{ "type": "command", "command": ".claude/hooks/agentwatch-emit.sh" }] }]
+    "Stop":              [{ "hooks": [{ "type": "command", "command": ".claude/hooks/agentwatch-emit.sh" }] }],
+    "SubagentStop":      [{ "hooks": [{ "type": "command", "command": ".claude/hooks/agentwatch-emit.sh" }] }]
   }
 }
 ```
 
 ## Mapping
 
-| Claude Code hook | AgentWatch event |
+| Claude Code hook | AgentWatch event(s) |
 | --- | --- |
 | `SessionStart`, `SessionEnd`, `Stop`, `SubagentStop` | `TeammateIdle` (agent flips to IDLE) |
 | `UserPromptSubmit` | `Message` (body = first 400 chars of prompt) |
-| `PreToolUse` (`Task` tool) | `TaskCreated` with synthetic id `local/<session>-<uuid>` |
-| `PreToolUse` (other tools) | `Message` "→ ToolName" |
-| `PostToolUse` (any tool) | `Message` ("✓ completed Task tool" or "← ToolName") |
+| `PreToolUse` (any tool) | `ActivityStarted` (keyed by `tool_use_id`) |
+| `PreToolUse` (`Task` tool) | also `TaskCreated` with synthetic id `local/<session>-<uuid>`, plus `subagentType` + `description` on the Activity |
+| `PostToolUse` (any tool) | `ActivityEnded` (keyed by the matching `tool_use_id`) |
+| `PreToolUse` / `PostToolUse` (any tool) | `Message` "→ ToolName" / "← ToolName" only when `AGENTWATCH_VERBOSE_MESSAGES=1` |
+
+The dashboard's left column ("Live activity") renders each agent's
+in-flight + recently-finished activities as a nested tree, using
+`parent_tool_use_id` to nest tool calls underneath their spawning Task.
 
 ## Verify
 
