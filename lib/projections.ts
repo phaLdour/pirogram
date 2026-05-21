@@ -103,5 +103,72 @@ export async function applyProjection(
       });
       return;
     }
+
+    case "ActivityStarted": {
+      const agent = await upsertAgent(tx, event.agent, "WORKING");
+      const parent = event.parentToolUseId
+        ? await tx.activity.findUnique({ where: { toolUseId: event.parentToolUseId } })
+        : null;
+      const startedAt = new Date(event.at);
+      const activity = await tx.activity.upsert({
+        where: { toolUseId: event.toolUseId },
+        update: {},
+        create: {
+          toolUseId: event.toolUseId,
+          agentId: agent.id,
+          parentId: parent?.id ?? null,
+          toolName: event.toolName,
+          subagentType: event.subagentType,
+          description: event.description,
+          sessionId: event.sessionId,
+          startedAt,
+        },
+      });
+      await tx.agent.update({
+        where: { id: agent.id },
+        data: { currentActivityId: activity.id, lastSeenAt: startedAt },
+      });
+      return;
+    }
+
+    case "ActivityEnded": {
+      const existing = await tx.activity.findUnique({
+        where: { toolUseId: event.toolUseId },
+      });
+      if (!existing) return;
+      const endedAt = new Date(event.at);
+      await tx.activity.update({
+        where: { id: existing.id },
+        data: { endedAt, ok: event.ok ?? null },
+      });
+      const agent = await tx.agent.findUnique({ where: { id: existing.agentId } });
+      if (!agent) return;
+      if (agent.currentActivityId !== existing.id) return;
+      // Pop up to the nearest still-open ancestor; if there's none, the
+      // agent has nothing in flight → flip to IDLE.
+      let cursorParentId = existing.parentId;
+      let next: { id: string } | null = null;
+      while (cursorParentId) {
+        const candidate = await tx.activity.findUnique({
+          where: { id: cursorParentId },
+          select: { id: true, parentId: true, endedAt: true },
+        });
+        if (!candidate) break;
+        if (candidate.endedAt === null) {
+          next = { id: candidate.id };
+          break;
+        }
+        cursorParentId = candidate.parentId;
+      }
+      await tx.agent.update({
+        where: { id: agent.id },
+        data: {
+          currentActivityId: next?.id ?? null,
+          status: next ? "WORKING" : "IDLE",
+          lastSeenAt: endedAt,
+        },
+      });
+      return;
+    }
   }
 }

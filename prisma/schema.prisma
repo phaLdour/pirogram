@@ -96,14 +96,16 @@ model VerificationToken {
 }
 
 model Agent {
-  id            String       @id @default(cuid())
-  name          String       @unique
-  role          String
-  status        AgentStatus  @default(IDLE)
-  currentTaskId String?
-  lastSeenAt    DateTime?
-  messages      Message[]
-  tasks         Task[]
+  id                String       @id @default(cuid())
+  name              String       @unique
+  role              String
+  status            AgentStatus  @default(IDLE)
+  currentTaskId     String?
+  currentActivityId String?
+  lastSeenAt        DateTime?
+  messages          Message[]
+  tasks             Task[]
+  activities        Activity[]
 }
 
 model Task {
@@ -211,6 +213,27 @@ model WebhookKey {
   revokedAt       DateTime?
 
   @@index([revokedAt])
+}
+
+model Activity {
+  id           String    @id @default(cuid())
+  toolUseId    String    @unique
+  agentId      String
+  parentId     String?
+  toolName     String
+  subagentType String?
+  description  String?
+  sessionId    String?
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  ok           Boolean?
+  agent        Agent     @relation(fields: [agentId], references: [id])
+  parent       Activity? @relation("ActivityTree", fields: [parentId], references: [id])
+  children     Activity[] @relation("ActivityTree")
+
+  @@index([agentId, endedAt])
+  @@index([parentId])
+  @@index([startedAt])
 }
 
 model EventLog {
