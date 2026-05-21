@@ -1,9 +1,16 @@
 "use client";
 
-export type ConnState = "connecting" | "live" | "reconnecting" | "warning" | "down";
+export type ConnState =
+  | "connecting"
+  | "live"
+  | "reconnecting"
+  | "warning"
+  | "polling"
+  | "down";
 
 const DOT_CLASS: Record<ConnState, string> = {
   live: "bg-status-working",
+  polling: "bg-status-working",
   reconnecting: "bg-amber-400",
   warning: "bg-amber-400",
   connecting: "bg-slate-500",
@@ -12,6 +19,7 @@ const DOT_CLASS: Record<ConnState, string> = {
 
 const LABEL: Record<ConnState, string> = {
   live: "live",
+  polling: "polling",
   reconnecting: "reconnecting",
   warning: "live · redis not configured",
   connecting: "connecting",
