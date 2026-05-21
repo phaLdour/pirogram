@@ -1,12 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createRepo, type CreateRepoResult } from "@/app/repos/actions";
+import { bindManually, type BindResult } from "@/app/repos/actions";
 
-const initial: CreateRepoResult | null = null;
+const initial: BindResult | null = null;
 
-async function action(_prev: CreateRepoResult | null, formData: FormData) {
-  return createRepo(formData);
+async function action(_prev: BindResult | null, formData: FormData) {
+  return bindManually(formData);
 }
 
 export function AddRepoForm({ webhookUrl }: { webhookUrl: string }) {
@@ -109,7 +109,9 @@ export function AddRepoForm({ webhookUrl }: { webhookUrl: string }) {
       )}
       {state && !state.ok && (
         <div className="mt-3 rounded-md border border-red-700/40 bg-red-950/30 p-2 text-xs text-red-300">
-          Error: {state.error}
+          Error: {state.error === "encryption-misconfigured"
+            ? "Server is missing WEBHOOK_KEY_ENCRYPTION_KEY. Set it in Vercel → Settings → Environment Variables and redeploy."
+            : state.error}
         </div>
       )}
     </div>

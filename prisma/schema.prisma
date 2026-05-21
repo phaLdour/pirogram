@@ -132,6 +132,8 @@ model Repo {
   displayName     String?
   encryptedSecret String
   hint            String
+  githubHookId    Int?
+  installedBy     String?
   createdAt       DateTime  @default(now())
   lastEventAt     DateTime?
   revokedAt       DateTime?
