@@ -83,3 +83,39 @@ export async function viewSprint(formData: FormData): Promise<void> {
   if (!id) return;
   redirect(`/sprints/${id}`);
 }
+
+export type EnableClaudeResult = { ok: true } | { ok: false; error: string };
+
+export async function enableClaudeOnSprint(formData: FormData): Promise<EnableClaudeResult> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "unauthorized" };
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, error: "id-required" };
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { ok: false, error: "anthropic-not-configured" };
+  }
+
+  await prisma.sprint.update({ where: { id }, data: { claudeEnabled: true } });
+  revalidatePath(`/sprints/${id}`);
+  return { ok: true };
+}
+
+export type ClaudeChatResult =
+  | { ok: true; reply: string; tasksProposed: string[] }
+  | { ok: false; error: string };
+
+export async function claudeChat(formData: FormData): Promise<ClaudeChatResult> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "unauthorized" };
+  const id = String(formData.get("sprintId") ?? "");
+  const message = String(formData.get("message") ?? "").trim();
+  if (!id) return { ok: false, error: "sprintId-required" };
+  if (!message) return { ok: false, error: "message-required" };
+  if (message.length > 8000) return { ok: false, error: "message-too-long" };
+
+  const { driveSprintTurn } = await import("@/lib/claude-driver");
+  const result = await driveSprintTurn(id, message);
+  if (result.ok) revalidatePath(`/sprints/${id}`);
+  return result;
+}
