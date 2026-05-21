@@ -4,11 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { EndSprintForm } from "@/components/sprints/EndSprintForm";
 import { ClaudeRunPanel, type ClaudeMessageVM } from "@/components/sprints/ClaudeRunPanel";
-import {
-  DriveOnGitHubPanel,
-  type DriverMessage,
-  type RepoOption,
-} from "@/components/sprints/DriveOnGitHubPanel";
+import { RunSprintTabs } from "@/components/sprints/RunSprintTabs";
+import type { DriverMessage, RepoOption } from "@/components/sprints/DriveOnGitHubPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -102,13 +99,15 @@ export default async function SprintDetailPage({
       </header>
 
       {sprint.status === "ACTIVE" && (
-        <DriveOnGitHubPanel
+        <RunSprintTabs
           sprintId={sprint.id}
+          driverMode={sprint.driverMode}
           driverStatus={sprint.driverStatus}
           driverIssueUrl={sprint.driverIssueUrl}
           driverRepoFullName={sprint.driver?.fullName ?? null}
           bindableRepos={bindableRepos}
           messages={driverMessages}
+          prefilledPrompt={null}
         />
       )}
 

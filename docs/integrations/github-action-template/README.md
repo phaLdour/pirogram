@@ -1,7 +1,22 @@
 # GitHub Action — let AgentWatch drive Claude Code on your repo
 
-This is the one-time setup you do on each repo you want to drive from AgentWatch's
-"Drive on GitHub" sprint button.
+This is the one-time setup for the **paid auto-action mode** (Sprint 9). If
+you don't want to pay per-token, skip this file entirely — use AgentWatch's
+**Hand off** mode instead, which runs Claude Code in your own browser session
+under your existing Claude Pro/Max subscription at zero extra cost.
+
+> **Decision matrix**
+>
+> - **Hand off mode (default, free):** AgentWatch opens a GitHub issue with
+>   the sprint goal and gives you a "Copy prompt" button + a link to
+>   `claude.ai/code`. You open the session yourself; Claude Code runs under
+>   your Pro/Max plan. AgentWatch tracks the issue/PR via webhooks. No setup
+>   needed beyond binding the repo on `/repos`.
+> - **Auto-action mode (this file, paid):** AgentWatch opens an issue with
+>   `@claude` in the body. The workflow below triggers, runs Claude Code in
+>   a GitHub runner, and pays for tokens via the Anthropic API key stored
+>   as a repo secret. Quality matches `claude-code` CLI; expect $0.30 - $2
+>   per sprint.
 
 ## What gets installed
 

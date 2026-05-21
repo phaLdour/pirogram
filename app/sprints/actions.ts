@@ -177,11 +177,121 @@ export async function driveSprintOnGitHub(formData: FormData): Promise<DriveResu
       driverIssueNumber: issueNumber,
       driverIssueUrl: issueUrl,
       driverStatus: "REQUESTED",
+      driverMode: "AUTO_ACTION",
     },
   });
 
   revalidatePath(`/sprints/${sprintId}`);
   return { ok: true, issueNumber, issueUrl };
+}
+
+export type HandoffResult =
+  | {
+      ok: true;
+      issueNumber: number;
+      issueUrl: string;
+      prompt: string;
+      deepLink: string;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Free-mode counterpart to driveSprintOnGitHub. Opens a GitHub issue with the
+ * sprint description but DOES NOT include `@claude` — the
+ * anthropics/claude-code-action workflow won't fire, so no Anthropic tokens
+ * are spent. The user opens claude.ai/code themselves under their Pro
+ * subscription using the prompt we return.
+ */
+export async function handoffToClaudeCode(formData: FormData): Promise<HandoffResult> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "unauthorized" };
+  const sprintId = String(formData.get("sprintId") ?? "");
+  const repoId = String(formData.get("repoId") ?? "");
+  if (!sprintId || !repoId) return { ok: false, error: "missing-fields" };
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId } });
+  if (!sprint) return { ok: false, error: "sprint-not-found" };
+  if (sprint.status !== "ACTIVE") return { ok: false, error: "sprint-not-active" };
+  if (sprint.driverIssueNumber) return { ok: false, error: "already-driving" };
+
+  const repo = await prisma.repo.findUnique({ where: { id: repoId } });
+  if (!repo || repo.revokedAt) return { ok: false, error: "repo-not-bound" };
+
+  const { getGithubAccount } = await import("@/lib/github-token");
+  const { GitHubApiError, createIssue, hasRequiredScopes } = await import("@/lib/github");
+  const account = await getGithubAccount(session.user.id);
+  if (!account) return { ok: false, error: "no-github-account" };
+  if (!hasRequiredScopes(account.scope)) return { ok: false, error: "scope-insufficient" };
+
+  const title = `[AgentWatch] ${sprint.name}`;
+  const goal = sprint.goal ?? "(no goal specified)";
+  const body = [
+    "## Sprint hand-off from AgentWatch",
+    "",
+    `**Sprint:** ${sprint.name}`,
+    "**Goal:**",
+    "",
+    goal,
+    "",
+    "---",
+    "",
+    "_This issue was opened by AgentWatch as a hand-off to Claude Code._",
+    "_Open this repo in Claude Code (Pro plan) to work the task — AgentWatch will track commits and PRs that reference this issue (e.g. `Closes #N`)._",
+  ].join("\n");
+
+  // Sanity guard: hand-off body MUST NOT contain @claude — otherwise the
+  // user's auto-action workflow would fire and start spending tokens.
+  if (/@claude\b/.test(body)) {
+    return { ok: false, error: "handoff-anti-trigger-failed" };
+  }
+
+  let issueNumber: number;
+  let issueUrl: string;
+  try {
+    const issue = await createIssue(account.accessToken, repo.fullName, {
+      title,
+      body,
+      labels: ["agentwatch-driven"],
+    });
+    issueNumber = issue.number;
+    issueUrl = issue.htmlUrl;
+  } catch (err) {
+    const kind = err instanceof GitHubApiError ? err.kind : "unknown";
+    return { ok: false, error: `github-${kind}` };
+  }
+
+  await prisma.sprint.update({
+    where: { id: sprintId },
+    data: {
+      driverRepoId: repo.id,
+      driverIssueNumber: issueNumber,
+      driverIssueUrl: issueUrl,
+      driverStatus: "REQUESTED",
+      driverMode: "HANDOFF",
+    },
+  });
+
+  // Promptu kullaıcı clipboard'a kopyalayabilsin diye / Claude Code'da yeni
+  // session başlatırken pencerede ne paste edeceğini bildirsin diye, server
+  // tarafında düzgün formatla.
+  const prompt = [
+    `You are working on the GitHub repository ${repo.fullName}.`,
+    "",
+    "AgentWatch handed you this sprint to execute:",
+    "",
+    `Sprint name: ${sprint.name}`,
+    "Goal:",
+    goal,
+    "",
+    `When you open the pull request, include "Closes #${issueNumber}" in the body so AgentWatch can detect completion. Reference issue: ${issueUrl}`,
+  ].join("\n");
+
+  // Best-effort deep link. Whether claude.ai honors `?q=` is uncertain; the
+  // UI also exposes a "Copy prompt" button as a guaranteed fallback.
+  const deepLink = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+
+  revalidatePath(`/sprints/${sprintId}`);
+  return { ok: true, issueNumber, issueUrl, prompt, deepLink };
 }
 
 export type ReplyResult = { ok: true } | { ok: false; error: string };
