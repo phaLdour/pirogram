@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encryptSecret, generateSecret, secretHint } from "@/lib/webhook/secret";
+import { log } from "@/lib/log";
 
 export type CreateKeyResult =
   | { ok: true; id: string; name: string; secret: string }
@@ -19,8 +20,15 @@ export async function createWebhookKey(formData: FormData): Promise<CreateKeyRes
   if (name.length > 80) return { ok: false, error: "name-too-long" };
 
   const secret = generateSecret();
-  const encryptedSecret = encryptSecret(secret);
-  const hint = secretHint(secret);
+  let encryptedSecret: string;
+  let hint: string;
+  try {
+    encryptedSecret = encryptSecret(secret);
+    hint = secretHint(secret);
+  } catch (err) {
+    log.error("settings.encryption-misconfigured", err);
+    return { ok: false, error: "encryption-misconfigured" };
+  }
 
   // Atomic rotation: revoke every prior non-revoked key, then issue the new one.
   // After this transaction commits, the new key is the only verifier the
