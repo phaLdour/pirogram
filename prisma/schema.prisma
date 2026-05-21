@@ -144,15 +144,38 @@ model Repo {
 }
 
 model Sprint {
-  id        String       @id @default(cuid())
-  name      String
-  goal      String?
-  status    SprintStatus @default(ACTIVE)
-  version   String?
-  startedAt DateTime     @default(now())
-  endedAt   DateTime?
-  changelog String?
-  tasks     Task[]
+  id             String          @id @default(cuid())
+  name           String
+  goal           String?
+  status         SprintStatus    @default(ACTIVE)
+  version        String?
+  startedAt      DateTime        @default(now())
+  endedAt        DateTime?
+  changelog      String?
+  claudeEnabled  Boolean         @default(false)
+  tasks          Task[]
+  claudeMessages ClaudeMessage[]
+}
+
+enum ClaudeRole {
+  USER
+  ASSISTANT
+}
+
+model ClaudeMessage {
+  id          String     @id @default(cuid())
+  sprintId    String
+  role        ClaudeRole
+  content     String
+  model       String?
+  tokensIn    Int?
+  tokensOut   Int?
+  tokensCacheR Int?
+  tokensCacheW Int?
+  createdAt   DateTime   @default(now())
+  sprint      Sprint     @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+
+  @@index([sprintId, createdAt])
 }
 
 model WebhookKey {

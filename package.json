@@ -19,6 +19,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.0",
     "@auth/prisma-adapter": "^2.7.4",
     "@prisma/client": "^6.1.0",
     "@tanstack/react-virtual": "^3.13.24",
