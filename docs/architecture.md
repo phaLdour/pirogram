@@ -84,21 +84,9 @@ Auth on the SSE endpoint reuses the NextAuth session cookie; unauthenticated req
 
 ## Auth
 
-- GitHub OAuth via NextAuth v5 + `@auth/prisma-adapter`; JWT session strategy so the Edge middleware stays light.
-- Scope requested: `read:user user:email repo admin:repo_hook` — broad because the OAuth App is owned by the same identity signing in, and the broader scopes power one-click bind on `/repos` (list user's repos + install/remove the webhook server-side via the user's access token, stored in `Account.access_token`).
-- `middleware.ts` redirects unauthenticated requests on `/`, `/settings`, `/sprints`, `/repos` to `/signin`.
-- Webhook endpoints do **not** use session auth — they rely on HMAC signing only.
-
-### One-click repo binding (`/repos`)
-
-1. `/repos` server component reads `Account.access_token` + `scope` via `lib/github-token.ts`.
-2. If scope is missing, render `<ReauthorizeCard />` (client) → `signIn("github", { callbackUrl: "/repos" })` triggers a fresh OAuth consent and updates the Account row on callback.
-3. With scope present, `lib/github.ts:listMyRepos(token)` fetches the first 100 repos.
-4. `<RepoPicker />` (client) renders a toggle per repo. Bind:
-   - Calls `bindRepo` server action → generates secret → `installRepoWebhook` → upserts `Repo { encryptedSecret, githubHookId, installedBy }` → returns plaintext secret once.
-5. Unbind:
-   - Calls `unbindRepo` server action → best-effort `deleteRepoWebhook` → marks `Repo.revokedAt`.
-6. A collapsible "Add a repo manually" fallback (`bindManually`) covers tokens that can't see a repo (e.g. org repos with limited scope).
+- GitHub OAuth via NextAuth v5 + `@auth/prisma-adapter`; database-backed sessions.
+- `middleware.ts` redirects unauthenticated requests on `/` and `/settings` to `/api/auth/signin`.
+- Webhook endpoint does **not** use session auth — it relies on HMAC signing only.
 
 ## Multi-tenancy
 

@@ -65,9 +65,7 @@ export function CreateKeyForm() {
       )}
       {state && !state.ok && (
         <div className="mt-3 rounded-md border border-red-700/40 bg-red-950/30 p-2 text-xs text-red-300">
-          Error: {state.error === "encryption-misconfigured"
-            ? "Server is missing WEBHOOK_KEY_ENCRYPTION_KEY. Set it in Vercel → Settings → Environment Variables and redeploy."
-            : state.error}
+          Error: {state.error}
         </div>
       )}
     </div>
