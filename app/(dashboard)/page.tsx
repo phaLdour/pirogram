@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { getDashboardSnapshot } from "@/lib/queries/dashboard";
-import { AgentList } from "@/components/dashboard/AgentList";
+import { LiveActivityPanel } from "@/components/dashboard/LiveActivityPanel";
 import { TaskBoard } from "@/components/dashboard/TaskBoard";
 import { LiveFeed } from "@/components/dashboard/LiveFeed";
 import { TopBar } from "@/components/dashboard/TopBar";
@@ -33,8 +33,11 @@ export default async function DashboardPage({
         repos={snapshot.repos}
         activeRepoId={snapshot.activeRepoId}
       />
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr_320px]">
-        <AgentList agents={snapshot.agents} />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[260px_1fr_320px]">
+        <LiveActivityPanel
+          agents={snapshot.agents}
+          handoffMode={snapshot.activeSprint?.driverMode === "HANDOFF"}
+        />
         <TaskBoard tasksByStatus={snapshot.tasksByStatus} />
         <LiveFeed feed={snapshot.feed} />
       </div>

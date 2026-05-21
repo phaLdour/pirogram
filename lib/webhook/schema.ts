@@ -49,6 +49,25 @@ export const agentEventSchema = z.discriminatedUnion("type", [
     at: iso,
     sprintId: z.string().min(1),
   }),
+  z.object({
+    type: z.literal("ActivityStarted"),
+    eventId: z.string().uuid(),
+    at: iso,
+    agent: z.string().min(1),
+    toolUseId: z.string().min(1),
+    toolName: z.string().min(1),
+    parentToolUseId: z.string().min(1).optional(),
+    subagentType: z.string().min(1).optional(),
+    description: z.string().max(500).optional(),
+    sessionId: z.string().min(1).optional(),
+  }),
+  z.object({
+    type: z.literal("ActivityEnded"),
+    eventId: z.string().uuid(),
+    at: iso,
+    toolUseId: z.string().min(1),
+    ok: z.boolean().optional(),
+  }),
 ]);
 
 export type AgentEvent = z.infer<typeof agentEventSchema>;
