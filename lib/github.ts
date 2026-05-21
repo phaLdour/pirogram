@@ -185,3 +185,90 @@ export async function deleteRepoWebhook(
   if (res.status === 204 || res.status === 404) return; // 404 = already gone
   throw new GitHubApiError(classify(res.status), res.status, await res.text());
 }
+
+export type CreatedIssue = { number: number; htmlUrl: string };
+
+export async function createIssue(
+  token: string,
+  fullName: string,
+  body: { title: string; body: string; labels: string[] },
+): Promise<CreatedIssue> {
+  const res = await ghFetch(`${GH_API}/repos/${fullName}/issues`, token, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new GitHubApiError(classify(res.status), res.status, await res.text());
+  }
+  const json = (await res.json()) as { number: number; html_url: string };
+  return { number: json.number, htmlUrl: json.html_url };
+}
+
+export async function createIssueComment(
+  token: string,
+  fullName: string,
+  issueNumber: number,
+  body: string,
+): Promise<{ id: number; htmlUrl: string }> {
+  const res = await ghFetch(
+    `${GH_API}/repos/${fullName}/issues/${issueNumber}/comments`,
+    token,
+    { method: "POST", body: JSON.stringify({ body }) },
+  );
+  if (!res.ok) {
+    throw new GitHubApiError(classify(res.status), res.status, await res.text());
+  }
+  const json = (await res.json()) as { id: number; html_url: string };
+  return { id: json.id, htmlUrl: json.html_url };
+}
+
+export type IssueComment = {
+  id: number;
+  user: string;
+  body: string;
+  createdAt: string;
+  isBot: boolean;
+};
+
+export async function listIssueComments(
+  token: string,
+  fullName: string,
+  issueNumber: number,
+): Promise<IssueComment[]> {
+  const res = await ghFetch(
+    `${GH_API}/repos/${fullName}/issues/${issueNumber}/comments?per_page=100`,
+    token,
+  );
+  if (!res.ok) {
+    throw new GitHubApiError(classify(res.status), res.status, await res.text());
+  }
+  const raw = (await res.json()) as Array<{
+    id: number;
+    user: { login: string; type: string };
+    body: string;
+    created_at: string;
+  }>;
+  return raw.map((c) => ({
+    id: c.id,
+    user: c.user.login,
+    body: c.body,
+    createdAt: c.created_at,
+    isBot: c.user.type === "Bot",
+  }));
+}
+
+/**
+ * Check whether the workflow file (e.g. `.github/workflows/claude.yml`)
+ * exists in the repo's default branch. Used by the UI to detect missing
+ * setup before kicking off a driver run.
+ */
+export async function fileExists(
+  token: string,
+  fullName: string,
+  path: string,
+): Promise<boolean> {
+  const res = await ghFetch(`${GH_API}/repos/${fullName}/contents/${path}`, token);
+  if (res.status === 200) return true;
+  if (res.status === 404) return false;
+  throw new GitHubApiError(classify(res.status), res.status, await res.text());
+}

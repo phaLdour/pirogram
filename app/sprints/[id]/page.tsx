@@ -4,6 +4,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { EndSprintForm } from "@/components/sprints/EndSprintForm";
 import { ClaudeRunPanel, type ClaudeMessageVM } from "@/components/sprints/ClaudeRunPanel";
+import {
+  DriveOnGitHubPanel,
+  type DriverMessage,
+  type RepoOption,
+} from "@/components/sprints/DriveOnGitHubPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +30,7 @@ export default async function SprintDetailPage({
     include: {
       tasks: { orderBy: [{ status: "asc" }, { completedAt: "desc" }] },
       claudeMessages: { orderBy: { createdAt: "asc" } },
+      driver: true,
     },
   });
   if (!sprint) notFound();
@@ -39,6 +45,34 @@ export default async function SprintDetailPage({
     tokensOut: m.tokensOut,
     tokensCacheR: m.tokensCacheR,
   }));
+
+  let driverMessages: DriverMessage[] = [];
+  let bindableRepos: RepoOption[] = [];
+  if (sprint.status === "ACTIVE") {
+    if (sprint.driverIssueNumber && sprint.driver) {
+      const driverTaskId = `${sprint.driver.fullName}/ISSUE-${sprint.driverIssueNumber}`;
+      const messages = await prisma.message.findMany({
+        where: { taskId: driverTaskId },
+        orderBy: { createdAt: "asc" },
+        take: 200,
+        include: { from: { select: { name: true } } },
+      });
+      driverMessages = messages.map((m) => ({
+        id: m.id,
+        fromName: m.from.name,
+        body: m.body,
+        createdAt: m.createdAt.toISOString(),
+        isBot: /\bbot\b/i.test(m.from.name) || /claude/i.test(m.from.name),
+      }));
+    } else {
+      const repos = await prisma.repo.findMany({
+        where: { revokedAt: null },
+        orderBy: { fullName: "asc" },
+        select: { id: true, fullName: true },
+      });
+      bindableRepos = repos;
+    }
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-6 py-10">
@@ -68,11 +102,29 @@ export default async function SprintDetailPage({
       </header>
 
       {sprint.status === "ACTIVE" && (
-        <ClaudeRunPanel
+        <DriveOnGitHubPanel
           sprintId={sprint.id}
-          enabled={sprint.claudeEnabled}
-          messages={claudeMessages}
+          driverStatus={sprint.driverStatus}
+          driverIssueUrl={sprint.driverIssueUrl}
+          driverRepoFullName={sprint.driver?.fullName ?? null}
+          bindableRepos={bindableRepos}
+          messages={driverMessages}
         />
+      )}
+
+      {sprint.status === "ACTIVE" && (
+        <details className="rounded-md border border-slate-800 bg-slate-900/40">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-300">
+            Planning copilot (refine the goal before driving on GitHub)
+          </summary>
+          <div className="border-t border-slate-800 p-4">
+            <ClaudeRunPanel
+              sprintId={sprint.id}
+              enabled={sprint.claudeEnabled}
+              messages={claudeMessages}
+            />
+          </div>
+        </details>
       )}
 
       {sprint.changelog ? (

@@ -1,0 +1,35 @@
+name: Claude Code (driven by AgentWatch)
+
+# Triggers:
+#   - A new issue labeled `agentwatch-driven` (created by AgentWatch when you
+#     click "Drive on GitHub" on a sprint).
+#   - A comment on any issue/PR mentioning `@claude` (AgentWatch's "Reply"
+#     button posts these for you).
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude:
+    # Only run when this is an AgentWatch-driven issue, OR a comment mentions
+    # @claude on an AgentWatch-driven issue. The label filter keeps random
+    # `@claude` mentions on unrelated issues from burning tokens.
+    if: |
+      (github.event_name == 'issues'
+       && contains(github.event.issue.labels.*.name, 'agentwatch-driven'))
+      ||
+      (github.event_name == 'issue_comment'
+       && contains(github.event.comment.body, '@claude')
+       && contains(github.event.issue.labels.*.name, 'agentwatch-driven'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
