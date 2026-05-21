@@ -68,6 +68,21 @@ type WorkflowRunPayload = {
   repository?: GhRepoRef;
 };
 
+type IssueCommentPayload = {
+  action: string;
+  issue: {
+    number: number;
+    title?: string | null;
+    labels?: Array<{ name?: string | null }> | null;
+  };
+  comment: {
+    body?: string | null;
+    created_at?: string | null;
+  };
+  sender?: ({ login?: string | null; type?: string | null } & GhUser) | null;
+  repository?: GhRepoRef;
+};
+
 export type TranslateContext = {
   /** Stable per-delivery prefix; the translator appends an index to make event IDs unique. */
   deliveryId: string;
@@ -149,6 +164,11 @@ export function translateGithubEvent(
       return { events: translateIssues(payload as IssuesPayload, ctx), recognized: true };
     case "workflow_run":
       return { events: translateWorkflowRun(payload as WorkflowRunPayload, ctx), recognized: true };
+    case "issue_comment":
+      return {
+        events: translateIssueComment(payload as IssueCommentPayload, ctx),
+        recognized: true,
+      };
     case "ping":
       return { events: [], recognized: true };
     default:
@@ -279,6 +299,36 @@ function translateWorkflowRun(p: WorkflowRunPayload, ctx: TranslateContext): Age
       at: isoOf(run.updated_at, ctx.now),
       from,
       body,
+    } as AgentEvent,
+  ];
+}
+
+function translateIssueComment(p: IssueCommentPayload, ctx: TranslateContext): AgentEvent[] {
+  if (p.action !== "created") return [];
+  const labels = (p.issue.labels ?? []).map((l) => l?.name).filter(Boolean) as string[];
+  const isDriverIssue = labels.includes("agentwatch-driven");
+  const senderType = p.sender?.type ?? "";
+  const senderLogin = p.sender?.login ?? "";
+  const isBot = senderType === "Bot" || /claude/i.test(senderLogin);
+
+  // We only surface driver-issue chatter or bot comments. Plain human
+  // comments on unrelated issues are noise — drop them silently.
+  if (!isDriverIssue && !isBot) return [];
+
+  const body = (p.comment.body ?? "").trim();
+  if (!body) return [];
+
+  const from = senderLogin || (isBot ? "claude[bot]" : "unknown");
+  const taskId = `${ctx.repoSlug}/ISSUE-${p.issue.number}`;
+
+  return [
+    {
+      type: "Message",
+      eventId: eventId(ctx, 0),
+      at: isoOf(p.comment.created_at, ctx.now),
+      from,
+      body,
+      taskId,
     } as AgentEvent,
   ];
 }

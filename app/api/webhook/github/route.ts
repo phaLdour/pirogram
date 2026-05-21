@@ -7,6 +7,7 @@ import { agentEventSchema, type AgentEvent } from "@/lib/webhook/schema";
 import { verifyHmacOnly } from "@/lib/webhook/verify";
 import { decryptRepoSecret, getActiveRepoByFullName, touchRepoLastEvent } from "@/lib/repos";
 import { translateGithubEvent } from "@/lib/webhook/github-translator";
+import { advanceDriverFromEvent } from "@/lib/sprint-driver";
 import { currentRequestId, generateRequestId, log, withRequestContext } from "@/lib/log";
 
 export const runtime = "nodejs";
@@ -144,6 +145,14 @@ async function handle(req: Request): Promise<Response> {
       log.error("github.publish-failed", err, { eventId: event.eventId });
     });
   }
+
+  await advanceDriverFromEvent({
+    repoId: repo.id,
+    eventName,
+    payload: payload as unknown as Prisma.InputJsonValue,
+  }).catch((err) => {
+    log.error("github.driver-advance-failed", err, { eventName, repoId: repo.id });
+  });
 
   await touchRepoLastEvent(repo.id);
 

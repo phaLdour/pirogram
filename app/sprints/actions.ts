@@ -119,3 +119,131 @@ export async function claudeChat(formData: FormData): Promise<ClaudeChatResult> 
   if (result.ok) revalidatePath(`/sprints/${id}`);
   return result;
 }
+
+export type DriveResult =
+  | { ok: true; issueNumber: number; issueUrl: string }
+  | { ok: false; error: string };
+
+export async function driveSprintOnGitHub(formData: FormData): Promise<DriveResult> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "unauthorized" };
+  const sprintId = String(formData.get("sprintId") ?? "");
+  const repoId = String(formData.get("repoId") ?? "");
+  if (!sprintId || !repoId) return { ok: false, error: "missing-fields" };
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId } });
+  if (!sprint) return { ok: false, error: "sprint-not-found" };
+  if (sprint.status !== "ACTIVE") return { ok: false, error: "sprint-not-active" };
+  if (sprint.driverIssueNumber) return { ok: false, error: "already-driving" };
+
+  const repo = await prisma.repo.findUnique({ where: { id: repoId } });
+  if (!repo || repo.revokedAt) return { ok: false, error: "repo-not-bound" };
+
+  const { getGithubAccount } = await import("@/lib/github-token");
+  const { GitHubApiError, createIssue, hasRequiredScopes } = await import("@/lib/github");
+  const account = await getGithubAccount(session.user.id);
+  if (!account) return { ok: false, error: "no-github-account" };
+  if (!hasRequiredScopes(account.scope)) return { ok: false, error: "scope-insufficient" };
+
+  const title = `[AgentWatch] ${sprint.name}`;
+  const body = [
+    "@claude",
+    "",
+    sprint.goal ?? "(no goal specified)",
+    "",
+    "---",
+    "_Driven by AgentWatch. Reply with `@claude <message>` to continue the conversation._",
+  ].join("\n");
+
+  let issueNumber: number;
+  let issueUrl: string;
+  try {
+    const issue = await createIssue(account.accessToken, repo.fullName, {
+      title,
+      body,
+      labels: ["agentwatch-driven"],
+    });
+    issueNumber = issue.number;
+    issueUrl = issue.htmlUrl;
+  } catch (err) {
+    const kind = err instanceof GitHubApiError ? err.kind : "unknown";
+    return { ok: false, error: `github-${kind}` };
+  }
+
+  await prisma.sprint.update({
+    where: { id: sprintId },
+    data: {
+      driverRepoId: repo.id,
+      driverIssueNumber: issueNumber,
+      driverIssueUrl: issueUrl,
+      driverStatus: "REQUESTED",
+    },
+  });
+
+  revalidatePath(`/sprints/${sprintId}`);
+  return { ok: true, issueNumber, issueUrl };
+}
+
+export type ReplyResult = { ok: true } | { ok: false; error: string };
+
+export async function replyToDriver(formData: FormData): Promise<ReplyResult> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "unauthorized" };
+  const sprintId = String(formData.get("sprintId") ?? "");
+  const messageRaw = String(formData.get("message") ?? "").trim();
+  if (!sprintId) return { ok: false, error: "sprintId-required" };
+  if (!messageRaw) return { ok: false, error: "message-required" };
+  if (messageRaw.length > 8000) return { ok: false, error: "message-too-long" };
+
+  const sprint = await prisma.sprint.findUnique({
+    where: { id: sprintId },
+    include: { driver: true },
+  });
+  if (!sprint || !sprint.driver || !sprint.driverIssueNumber) {
+    return { ok: false, error: "not-driving" };
+  }
+
+  const { getGithubAccount } = await import("@/lib/github-token");
+  const { GitHubApiError, createIssueComment, hasRequiredScopes } = await import("@/lib/github");
+  const account = await getGithubAccount(session.user.id);
+  if (!account || !hasRequiredScopes(account.scope)) {
+    return { ok: false, error: "scope-insufficient" };
+  }
+
+  // Prefix with @claude (unless the user already did) so the workflow's
+  // `contains(comment.body, '@claude')` guard fires.
+  const body = /@claude\b/.test(messageRaw) ? messageRaw : `@claude ${messageRaw}`;
+
+  try {
+    await createIssueComment(
+      account.accessToken,
+      sprint.driver.fullName,
+      sprint.driverIssueNumber,
+      body,
+    );
+  } catch (err) {
+    const kind = err instanceof GitHubApiError ? err.kind : "unknown";
+    return { ok: false, error: `github-${kind}` };
+  }
+
+  // Optimistic state nudge — webhook handler will reconcile on the real event.
+  await prisma.sprint.update({
+    where: { id: sprintId },
+    data: { driverStatus: "RUNNING" },
+  });
+
+  revalidatePath(`/sprints/${sprintId}`);
+  return { ok: true };
+}
+
+export async function stopDriving(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.user) return;
+  const sprintId = String(formData.get("sprintId") ?? "");
+  if (!sprintId) return;
+  await prisma.sprint.update({
+    where: { id: sprintId },
+    data: { driverStatus: "COMPLETED" },
+  });
+  revalidatePath(`/sprints/${sprintId}`);
+}

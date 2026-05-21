@@ -35,6 +35,15 @@ enum SprintStatus {
   ARCHIVED
 }
 
+enum SprintDriverStatus {
+  NOT_DRIVING
+  REQUESTED
+  RUNNING
+  AWAITING_USER
+  COMPLETED
+  FAILED
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -139,22 +148,30 @@ model Repo {
   revokedAt       DateTime?
   tasks           Task[]
   messages        Message[]
+  drivenSprints   Sprint[]  @relation("SprintDriver")
 
   @@index([revokedAt])
 }
 
 model Sprint {
-  id             String          @id @default(cuid())
-  name           String
-  goal           String?
-  status         SprintStatus    @default(ACTIVE)
-  version        String?
-  startedAt      DateTime        @default(now())
-  endedAt        DateTime?
-  changelog      String?
-  claudeEnabled  Boolean         @default(false)
-  tasks          Task[]
-  claudeMessages ClaudeMessage[]
+  id                String             @id @default(cuid())
+  name              String
+  goal              String?
+  status            SprintStatus       @default(ACTIVE)
+  version           String?
+  startedAt         DateTime           @default(now())
+  endedAt           DateTime?
+  changelog         String?
+  claudeEnabled     Boolean            @default(false)
+  driverRepoId      String?
+  driverIssueNumber Int?
+  driverIssueUrl    String?
+  driverStatus      SprintDriverStatus @default(NOT_DRIVING)
+  tasks             Task[]
+  claudeMessages    ClaudeMessage[]
+  driver            Repo?              @relation("SprintDriver", fields: [driverRepoId], references: [id])
+
+  @@index([driverRepoId, driverIssueNumber])
 }
 
 enum ClaudeRole {
